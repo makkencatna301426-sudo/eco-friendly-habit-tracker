@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco-Friendly Habit Tracker</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome 6 CDN for clean UI Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Chart.js for Weekly Progress Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Canvas Confetti for Reward Animations -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        emerald: {
+                            450: '#10c981',
+                            950: '#022c22',
+                        },
+                        mint: {
+                            100: '#e6fffa',
+                            400: '#38edf6',
+                            500: '#14b8a6',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top left, #0f172a 0%, #064e3b 45%, #022c22 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-card-emerald {
+            background: linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(4, 120, 87, 0.3) 100%);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #10b981;
+            border-radius: 9999px;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.6); }
+        }
+
+        .active-glow {
+            animation: pulseGlow 2.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-100 overflow-x-hidden selection:bg-emerald-500 selection:text-white">
+
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none max-w-sm w-full"></div>
+
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-4 sm:px-8 py-3.5 shadow-xl">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <!-- App Brand Logo -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="handleBrandClick()">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-leaf text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 bg-clip-text text-transparent">
+                        EcoTrack
+                    </h1>
+                    <p class="text-[11px] text-slate-400 font-medium">Habits for a Greener Planet</p>
+                </div>
+            </div>
+
+            <!-- Header Right Menu (Authenticated User Details) -->
+            <div id="navUserSection" class="hidden flex items-center space-x-3 sm:space-x-5">
+                <div class="flex items-center space-x-2 bg-slate-900/90 border border-emerald-500/30 px-3.5 py-1.5 rounded-full shadow-inner">
+                    <i class="fa-solid fa-fire text-amber-400 text-sm"></i>
+                    <span id="navStreakCount" class="text-xs font-bold text-slate-200">0 Day Streak</span>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-slate-900/90 border border-emerald-500/30 px-3.5 py-1.5 rounded-full shadow-inner">
+                    <i class="fa-solid fa-coins text-amber-300 text-sm"></i>
+                    <span id="navPointsCount" class="text-xs font-black text-amber-300">0 Eco Pts</span>
+                </div>
+
+                <button onclick="promptLogout()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 hover:text-rose-400 text-slate-400 border border-slate-700 hover:border-rose-500/40 transition duration-200" title="Log Out">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+
+        <!-- ============================================================ -->
+        <!-- VIEW 1: AUTHENTICATION (LOGIN & SIGN-UP) -->
+        <!-- ============================================================ -->
+        <section id="authView" class="w-full max-w-md mx-auto py-6">
+            <div class="glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-500/20 active-glow">
+                
+                <!-- Auth Header -->
+                <div class="text-center mb-6">
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center mx-auto mb-3 text-emerald-400 text-2xl">
+                        <i class="fa-solid fa-earth-americas"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white">Welcome to EcoTrack</h2>
+                    <p class="text-xs text-slate-400 mt-1">Track your daily eco-friendly habits and measure your impact.</p>
+                </div>
+
+                <!-- Tab Buttons (Login vs Sign Up) -->
+                <div class="grid grid-cols-2 bg-slate-900/90 p-1 rounded-2xl border border-slate-800 mb-6">
+                    <button id="tabLoginBtn" onclick="switchAuthTab('login')" class="py-2 rounded-xl text-xs font-bold transition duration-200 bg-emerald-600 text-white shadow-md">
+                        Log In
+                    </button>
+                    <button id="tabSignUpBtn" onclick="switchAuthTab('signup')" class="py-2 rounded-xl text-xs font-bold transition duration-200 text-slate-400 hover:text-white">
+                        Sign Up
+                    </button>
+                </div>
+
+                <!-- Login Error Alert Container -->
+                <div id="loginErrorAlert" class="hidden bg-rose-500/10 border border-rose-500/40 rounded-2xl p-4 mb-5 text-xs text-rose-300 flex items-start space-x-3">
+                    <i class="fa-solid fa-circle-exclamation text-rose-400 text-base mt-0.5"></i>
+                    <div>
+                        <span class="font-bold block text-rose-200">Log In Error</span>
+                        <span id="loginErrorText">Invalid username or password. Please verify your credentials and try again.</span>
+                    </div>
+                </div>
+
+                <!-- LOGIN FORM -->
+                <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Username</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-500"></i>
+                            <input id="loginUsername" type="text" required placeholder="Enter your username" 
+                                   class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Password</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-500"></i>
+                            <input id="loginPassword" type="password" required placeholder="••••••••" 
+                                   class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-900/40 flex items-center justify-center space-x-2 transition transform active:scale-[0.98]">
+                        <span>Log In</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </form>
+
+                <!-- SIGN UP FORM -->
+                <form id="signUpForm" onsubmit="handleSignUpSubmit(event)" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Full Name</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-id-card absolute left-3.5 top-3.5 text-slate-500"></i>
+                            <input id="signUpName" type="text" required placeholder="e.g. Alex Rivera" 
+                                   class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Username</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-500"></i>
+                            <input id="signUpUsername" type="text" required placeholder="Choose a username" 
+                                   class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Password</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-500"></i>
+                            <input id="signUpPassword" type="password" required placeholder="Choose a secure password" 
+                                   class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-teal-900/40 flex items-center justify-center space-x-2 transition transform active:scale-[0.98]">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Create Account</span>
+                    </button>
+                </form>
+
+            </div>
+        </section>
+
+
+        <!-- ============================================================ -->
+        <!-- VIEW 2: USER DASHBOARD -->
+        <!-- ============================================================ -->
+        <section id="dashboardView" class="hidden space-y-8">
+
+            <!-- Profile Overview Header -->
+            <div class="glass-card-emerald rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-400 to-cyan-400 p-0.5 shadow-lg shadow-emerald-500/30">
+                        <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-emerald-400 font-extrabold text-2xl">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h2 id="dashWelcomeName" class="text-2xl sm:text-3xl font-extrabold text-white">Welcome back!</h2>
+                            <span class="bg-emerald-400/20 text-emerald-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-400/40">Active Member</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-emerald-200/80 mt-1">Every small action compounds into massive planetary savings.</p>
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="openHabitModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold px-5 py-3 rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center space-x-2 transition transform active:scale-95 text-sm">
+                        <i class="fa-solid fa-plus text-base"></i>
+                        <span>Add New Habit</span>
+                    </button>
+
+                    <button onclick="openProgressModal()" class="bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 font-bold px-5 py-3 rounded-2xl shadow-lg flex items-center space-x-2 transition text-sm">
+                        <i class="fa-solid fa-chart-line text-emerald-400"></i>
+                        <span>View Progress Report</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 text-center hover:border-emerald-500/50 transition">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto mb-2 text-lg">
+                        <i class="fa-solid fa-cloud"></i>
+                    </div>
+                    <span id="statCO2" class="block text-2xl font-black text-white">0.0 kg</span>
+                    <span class="text-xs text-slate-400 font-medium uppercase">CO₂ Offset</span>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 text-center hover:border-emerald-500/50 transition">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto mb-2 text-lg">
+                        <i class="fa-solid fa-droplet"></i>
+                    </div>
+                    <span id="statWater" class="block text-2xl font-black text-white">0 L</span>
+                    <span class="text-xs text-slate-400 font-medium uppercase">Water Conserved</span>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 text-center hover:border-emerald-500/50 transition">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-2 text-lg">
+                        <i class="fa-solid fa-recycle"></i>
+                    </div>
+                    <span id="statWaste" class="block text-2xl font-black text-white">0.0 kg</span>
+                    <span class="text-xs text-slate-400 font-medium uppercase">Waste Diverted</span>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 text-center hover:border-emerald-500/50 transition">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-2 text-lg">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <span id="statPoints" class="block text-2xl font-black text-amber-300">0</span>
+                    <span class="text-xs text-slate-400 font-medium uppercase">Total Eco Points</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <!-- Left 2 Columns: Active Tracked Habits -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-white flex items-center">
+                            <i class="fa-solid fa-list-check text-emerald-400 mr-2.5"></i> My Tracked Habits
+                        </h3>
+                        <span id="habitCountBadge" class="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-full">
+                            0 active
+                        </span>
+                    </div>
+
+                    <!-- Habit Cards Container -->
+                    <div id="habitsContainer" class="space-y-3.5">
+                        <!-- Dynamic habit cards injected here -->
+                    </div>
+                </div>
+
+                <!-- Right 1 Column: Quick Eco Actions -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-white flex items-center">
+                            <i class="fa-solid fa-bolt text-amber-400 mr-2.5"></i> Track Eco Action
+                        </h3>
+                        <span class="text-xs text-slate-400">Instant Log</span>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl p-5 border border-slate-800 space-y-3">
+                        <p class="text-xs text-slate-400 mb-2">Perform an impromptu eco-friendly deed? Log it instantly below to earn impact points:</p>
+
+                        <button onclick="logQuickAction('bag')" class="w-full p-3 rounded-2xl bg-slate-900/80 hover:bg-emerald-950/60 border border-slate-800 hover:border-emerald-500/40 text-left flex items-center justify-between transition group">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-bag-shopping"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-xs font-bold text-slate-200">Used Reusable Bag</span>
+                                    <span class="text-[11px] text-slate-400">Diverts plastic waste</span>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-amber-300 bg-amber-400/10 px-2.5 py-1 rounded-lg">+15 Pts</span>
+                        </button>
+
+                        <button onclick="logQuickAction('bike')" class="w-full p-3 rounded-2xl bg-slate-900/80 hover:bg-emerald-950/60 border border-slate-800 hover:border-emerald-500/40 text-left flex items-center justify-between transition group">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-bicycle"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-xs font-bold text-slate-200">Biked or Walked</span>
+                                    <span class="text-[11px] text-slate-400">Reduces vehicle emissions</span>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-amber-300 bg-amber-400/10 px-2.5 py-1 rounded-lg">+35 Pts</span>
+                        </button>
+
+                        <button onclick="logQuickAction('ac')" class="w-full p-3 rounded-2xl bg-slate-900/80 hover:bg-emerald-950/60 border border-slate-800 hover:border-emerald-500/40 text-left flex items-center justify-between transition group">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-xs font-bold text-slate-200">Turned Off AC / Unplugged</span>
+                                    <span class="text-[11px] text-slate-400">Conserves electricity</span>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-amber-300 bg-amber-400/10 px-2.5 py-1 rounded-lg">+20 Pts</span>
+                        </button>
+
+                        <button onclick="logQuickAction('meal')" class="w-full p-3 rounded-2xl bg-slate-900/80 hover:bg-emerald-950/60 border border-slate-800 hover:border-emerald-500/40 text-left flex items-center justify-between transition group">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-9 h-9 rounded-xl bg-lime-500/20 text-lime-400 flex items-center justify-center group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-utensils"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-xs font-bold text-slate-200">Zero Waste / Plant Meal</span>
+                                    <span class="text-[11px] text-slate-400">Low carbon diet</span>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-amber-300 bg-amber-400/10 px-2.5 py-1 rounded-lg">+25 Pts</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+
+    <!-- ============================================================ -->
+    <!-- MODAL 1: ENTER HABIT DETAILS -->
+    <!-- ============================================================ -->
+    <div id="addHabitModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-2xl relative">
+            <button onclick="closeHabitModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <i class="fa-solid fa-square-plus text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Enter Habit Details</h3>
+                    <p class="text-xs text-slate-400">Define a new eco-friendly daily or weekly habit</p>
+                </div>
+            </div>
+
+            <form onsubmit="handleCreateHabitSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Habit Name</label>
+                    <input id="habitName" type="text" required placeholder="e.g., Take a 5-minute shower" 
+                           class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Category</label>
+                        <select id="habitCategory" class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                            <option value="energy">⚡ Energy Conservation</option>
+                            <option value="water">💧 Water Conservation</option>
+                            <option value="waste">♻️ Waste & Recycling</option>
+                            <option value="transport">🚲 Sustainable Transport</option>
+                            <option value="food">🥗 Sustainable Food</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Frequency</label>
+                        <select id="habitFrequency" class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Estimated CO₂ Saved / Day</label>
+                        <input id="habitCO2" type="number" step="0.1" min="0.1" value="0.5" required 
+                               class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Eco Points Reward</label>
+                        <select id="habitPoints" class="w-full bg-slate-900/90 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                            <option value="15">15 Points (Standard)</option>
+                            <option value="25" selected>25 Points (Moderate)</option>
+                            <option value="50">50 Points (High Impact)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeHabitModal()" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl transition text-sm">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-2/3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg transition text-sm">
+                        Save Habit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- MODAL 2: PROGRESS SUMMARY & WEEKLY REPORT -->
+    <!-- ============================================================ -->
+    <div id="progressModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-3xl max-h-[90vh] rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-2xl relative overflow-y-auto custom-scrollbar">
+            <button onclick="closeProgressModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                    <i class="fa-solid fa-chart-pie text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Weekly Progress Summary</h3>
+                    <p class="text-xs text-slate-400">Calculated eco impact metrics & activity report</p>
+                </div>
+            </div>
+
+            <!-- FEATURE 1: Visual Chart Container (As seen in reference image) -->
+            <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 mb-6">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Daily Points Activity (This Week)</h4>
+                <div class="h-56 relative">
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </div>
+
+            <!-- FEATURE 2: Written Paragraph Impact Overview Box -->
+            <div class="bg-slate-900/90 p-4 rounded-2xl border border-emerald-500/30 mb-6">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1.5"><i class="fa-solid fa-sparkles mr-1"></i> Impact Overview</h4>
+                <p id="reportSummaryText" class="text-xs text-slate-300 leading-relaxed">
+                    Loading summary...
+                </p>
+            </div>
+
+            <!-- Impact Breakdown Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
+                    <span class="text-xs text-slate-400 block mb-1">Weekly CO₂ Avoided</span>
+                    <span id="reportWeeklyCO2" class="text-xl font-black text-emerald-400">0.0 kg</span>
+                </div>
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
+                    <span class="text-xs text-slate-400 block mb-1">Actions Completed</span>
+                    <span id="reportActionsCount" class="text-xl font-black text-cyan-400">0</span>
+                </div>
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-center">
+                    <span class="text-xs text-slate-400 block mb-1">Badges Unlocked</span>
+                    <span id="reportBadgesCount" class="text-xl font-black text-amber-300">3 / 4</span>
+                </div>
+            </div>
+
+            <!-- Badges List -->
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Eco Achievements Unlocked</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-slate-900/90 p-3 rounded-2xl border border-emerald-500/30 text-center">
+                    <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-1 text-sm">
+                        <i class="fa-solid fa-seedling"></i>
+                    </div>
+                    <span class="block text-xs font-bold text-white">Eco Starter</span>
+                    <span class="text-[10px] text-emerald-400 font-semibold">Unlocked</span>
+                </div>
+
+                <div class="bg-slate-900/90 p-3 rounded-2xl border border-emerald-500/30 text-center">
+                    <div class="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-1 text-sm">
+                        <i class="fa-solid fa-glass-water"></i>
+                    </div>
+                    <span class="block text-xs font-bold text-white">Water Hero</span>
+                    <span class="text-[10px] text-cyan-400 font-semibold">Unlocked</span>
+                </div>
+
+                <div class="bg-slate-900/90 p-3 rounded-2xl border border-emerald-500/30 text-center">
+                    <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-1 text-sm">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="block text-xs font-bold text-white">Energy Saver</span>
+                    <span class="text-[10px] text-amber-400 font-semibold">Unlocked</span>
+                </div>
+
+                <div class="bg-slate-900/90 p-3 rounded-2xl border border-slate-800 text-center opacity-60">
+                    <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center mx-auto mb-1 text-sm">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <span class="block text-xs font-bold text-slate-300">Planet Master</span>
+                    <span class="text-[10px] text-slate-500">500 Pts Req</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- MODAL 3: LOGOUT CONFIRMATION -->
+    <!-- ============================================================ -->
+    <div id="logoutModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-sm rounded-3xl p-6 text-center border border-rose-500/30 shadow-2xl">
+            <div class="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-power-off"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-1">Do you want to log out?</h3>
+            <p class="text-xs text-slate-400 mb-6">Your tracked habit progress and points will remain safely stored.</p>
+
+            <div class="flex space-x-3">
+                <button onclick="confirmLogout(false)" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl transition text-sm">
+                    No, Stay
+                </button>
+                <button onclick="confirmLogout(true)" class="w-1/2 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-xl shadow-lg transition text-sm">
+                    Yes, Log Out
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Safe Data Container for Flask Server Session Data -->
+    <script id="server-user-data" type="application/json">
+        {{ server_user | tojson | safe }}
+    </script>
+
+    <script>
+        const AppState = {
+            currentUser: null,
+            chartInstance: null
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const dataElement = document.getElementById('server-user-data');
+            let serverUser = null;
+            if (dataElement && dataElement.textContent.trim()) {
+                try {
+                    serverUser = JSON.parse(dataElement.textContent);
+                } catch (e) {
+                    console.error("Error parsing user data:", e);
+                }
+            }
+
+            if (serverUser) {
+                AppState.currentUser = serverUser;
+                showDashboard();
+            } else {
+                showAuthView();
+            }
+        });
+
+        function switchAuthTab(tab) {
+            document.getElementById('loginErrorAlert').classList.add('hidden');
+            const loginForm = document.getElementById('loginForm');
+            const signUpForm = document.getElementById('signUpForm');
+            const tabLoginBtn = document.getElementById('tabLoginBtn');
+            const tabSignUpBtn = document.getElementById('tabSignUpBtn');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                signUpForm.classList.add('hidden');
+                tabLoginBtn.className = 'py-2 rounded-xl text-xs font-bold transition duration-200 bg-emerald-600 text-white shadow-md';
+                tabSignUpBtn.className = 'py-2 rounded-xl text-xs font-bold transition duration-200 text-slate-400 hover:text-white';
+            } else {
+                loginForm.classList.add('hidden');
+                signUpForm.classList.remove('hidden');
+                tabSignUpBtn.className = 'py-2 rounded-xl text-xs font-bold transition duration-200 bg-teal-600 text-white shadow-md';
+                tabLoginBtn.className = 'py-2 rounded-xl text-xs font-bold transition duration-200 text-slate-400 hover:text-white';
+            }
+        }
+
+        async function handleLoginSubmit(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    document.getElementById('loginErrorAlert').classList.add('hidden');
+                    window.location.reload();
+                } else {
+                    document.getElementById('loginErrorText').innerText = data.message || 'Invalid username or password.';
+                    document.getElementById('loginErrorAlert').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Server connection error.', 'error');
+            }
+        }
+
+        async function handleSignUpSubmit(event) {
+            event.preventDefault();
+            const name = document.getElementById('signUpName').value.trim();
+            const username = document.getElementById('signUpUsername').value.trim();
+            const password = document.getElementById('signUpPassword').value.trim();
+
+            try {
+                const response = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, username, password })
+                });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showToast('Account Created Successfully! Please log in.', 'success');
+                    switchAuthTab('login');
+                    document.getElementById('loginUsername').value = username;
+                    document.getElementById('loginPassword').value = '';
+                } else {
+                    showToast(data.message || 'Error creating account', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Server connection error.', 'error');
+            }
+        }
+
+        function showAuthView() {
+            document.getElementById('authView').classList.remove('hidden');
+            document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('navUserSection').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('authView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('hidden');
+            document.getElementById('navUserSection').classList.remove('hidden');
+
+            renderDashboardData();
+        }
+
+        function renderDashboardData() {
+            const u = AppState.currentUser;
+            if (!u) return;
+
+            document.getElementById('dashWelcomeName').innerText = `Welcome back, ${u.name}!`;
+            document.getElementById('navStreakCount').innerText = `${u.streak} Day Streak`;
+            document.getElementById('navPointsCount').innerText = `${u.points} Eco Pts`;
+
+            document.getElementById('statCO2').innerText = `${u.co2.toFixed(1)} kg`;
+            document.getElementById('statWater').innerText = `${u.water} L`;
+            document.getElementById('statWaste').innerText = `${u.waste.toFixed(1)} kg`;
+            document.getElementById('statPoints').innerText = u.points;
+
+            renderHabitsList();
+        }
+
+        function renderHabitsList() {
+            const u = AppState.currentUser;
+            const container = document.getElementById('habitsContainer');
+            document.getElementById('habitCountBadge').innerText = `${u.habits.length} active`;
+
+            if (u.habits.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-panel p-6 rounded-2xl text-center text-slate-400">
+                        <p class="text-sm">No habits added yet. Click <b>"Add New Habit"</b> above to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = u.habits.map(h => `
+                <div class="glass-panel p-4 rounded-2xl border border-slate-800 flex items-center justify-between hover:border-emerald-500/40 transition">
+                    <div class="flex items-center space-x-3.5">
+                        <button onclick="toggleHabitComplete('${h.id}')" class="w-7 h-7 rounded-lg border flex items-center justify-center transition ${h.completed ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold' : 'border-slate-600 text-transparent hover:border-emerald-400'}">
+                            <i class="fa-solid fa-check text-xs"></i>
+                        </button>
+
+                        <div>
+                            <span class="block text-sm font-bold ${h.completed ? 'line-through text-slate-400' : 'text-slate-100'}">${h.name}</span>
+                            <div class="flex items-center space-x-2 text-[11px] text-slate-400 mt-0.5">
+                                <span class="capitalize text-emerald-400 font-semibold">${getCategoryLabel(h.category)}</span>
+                                <span>&bull;</span>
+                                <span>+${h.points} Pts</span>
+                                <span>&bull;</span>
+                                <span class="text-slate-300"><i class="fa-solid fa-fire text-amber-400 mr-1"></i>${h.streak}d streak</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="deleteHabit('${h.id}')" class="text-slate-500 hover:text-rose-400 p-2 text-xs transition" title="Remove Habit">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function getCategoryLabel(cat) {
+            switch(cat) {
+                case 'energy': return '⚡ Energy';
+                case 'water': return '💧 Water';
+                case 'waste': return '♻️ Waste';
+                case 'transport': return '🚲 Transport';
+                case 'food': return '🥗 Food';
+                default: return '🌿 Eco';
+            }
+        }
+
+        async function toggleHabitComplete(habitId) {
+            try {
+                const response = await fetch(`/api/habit/toggle/${habitId}`, { method: 'POST' });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    triggerConfetti();
+                    window.location.reload();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function deleteHabit(habitId) {
+            try {
+                const response = await fetch(`/api/habit/delete/${habitId}`, { method: 'POST' });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    window.location.reload();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function logQuickAction(type) {
+            let name = 'Eco Action';
+            let category = 'energy';
+            let points = 15;
+            let co2 = 0.5;
+
+            if (type === 'bag') { name = 'Reusable Bag Used'; category = 'waste'; points = 15; co2 = 0.3; }
+            if (type === 'bike') { name = 'Biked / Walked'; category = 'transport'; points = 35; co2 = 2.4; }
+            if (type === 'ac') { name = 'Power Conserved'; category = 'energy'; points = 20; co2 = 1.1; }
+            if (type === 'meal') { name = 'Zero Waste Meal'; category = 'food'; points = 25; co2 = 1.5; }
+
+            try {
+                const response = await fetch('/api/habit/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, category, frequency: 'Daily', points, co2 })
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    triggerConfetti();
+                    window.location.reload();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openHabitModal() {
+            document.getElementById('addHabitModal').classList.remove('hidden');
+        }
+
+        function closeHabitModal() {
+            document.getElementById('addHabitModal').classList.add('hidden');
+        }
+
+        async function handleCreateHabitSubmit(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('habitName').value.trim();
+            const category = document.getElementById('habitCategory').value;
+            const frequency = document.getElementById('habitFrequency').value;
+            const co2 = parseFloat(document.getElementById('habitCO2').value) || 0.5;
+            const points = parseInt(document.getElementById('habitPoints').value) || 25;
+
+            try {
+                const response = await fetch('/api/habit/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, category, frequency, points, co2 })
+                });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    closeHabitModal();
+                    window.location.reload();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openProgressModal() {
+            document.getElementById('progressModal').classList.remove('hidden');
+            renderProgressChart();
+        }
+
+        function closeProgressModal() {
+            document.getElementById('progressModal').classList.add('hidden');
+        }
+
+        function renderProgressChart() {
+            const u = AppState.currentUser;
+            if (!u) return;
+
+            document.getElementById('reportWeeklyCO2').innerText = `${u.co2.toFixed(1)} kg`;
+            const completedCount = u.habits.filter(h => h.completed).length;
+            document.getElementById('reportActionsCount').innerText = completedCount;
+
+            // Generate dynamic paragraph summary
+            const summaryEl = document.getElementById('reportSummaryText');
+            summaryEl.innerText = `Great job this week! You have successfully avoided ${u.co2.toFixed(1)} kg of CO₂ emissions, conserved ${u.water} L of water, and diverted ${u.waste.toFixed(1)} kg of waste. With ${completedCount} active habits completed and ${u.points} total eco points earned, your consistent choices are making a tangible difference for our planet. Keep up the momentum!`;
+
+            const ctx = document.getElementById('progressChart').getContext('2d');
+
+            if (AppState.chartInstance) {
+                AppState.chartInstance.destroy();
+            }
+
+            const labels = u.weeklyLogs.map(l => l.day);
+            const data = u.weeklyLogs.map(l => l.points);
+
+            AppState.chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Eco Points Earned',
+                        data: data,
+                        backgroundColor: '#10b981',
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#34d399'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function promptLogout() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+
+        async function confirmLogout(yes) {
+            document.getElementById('logoutModal').classList.add('hidden');
+            if (yes) {
+                try {
+                    await fetch('/api/logout', { method: 'POST' });
+                    window.location.reload();
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+        }
+
+        function handleBrandClick() {
+            if (AppState.currentUser) {
+                showDashboard();
+            } else {
+                showAuthView();
+            }
+        }
+
+        function triggerConfetti() {
+            if (window.confetti) {
+                confetti({
+                    particleCount: 65,
+                    spread: 60,
+                    origin: { y: 0.7 }
+                });
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            const bgClass = type === 'success' ? 'bg-emerald-600 border-emerald-400' :
+                            type === 'error' ? 'bg-rose-600 border-rose-400' : 'bg-slate-800 border-slate-700';
+
+            const iconClass = type === 'success' ? 'fa-circle-check text-emerald-300' :
+                             type === 'error' ? 'fa-triangle-exclamation text-rose-300' : 'fa-circle-info text-cyan-300';
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center space-x-2.5 text-white border transition duration-300 ${bgClass}`;
+            toast.innerHTML = `<i class="fa-solid ${iconClass} text-sm"></i><span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 2800);
+        }
+    </script>
+</body>
+</html>
